@@ -2,7 +2,7 @@
 
 Purpose: Simple GUI tool to generate a Havoc C2 profile for Demon.
 
-![](/assets/mainwindow.png)
+![](mainwindow.png)
 
 ## Usage
 
