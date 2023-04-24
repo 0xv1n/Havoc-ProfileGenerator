@@ -74,6 +74,7 @@ func (d draculaTheme) Size(name fyne.ThemeSizeName) float32 {
 type Config struct {
 	Teamserver Teamserver `hcl:"Teamserver,block"`
 	Operators  []Operator `hcl:"user,block"`
+	Listeners  []Listener `hcl:"listener,block"`
 	Service    *Service   `hcl:"Service,block"`
 	Demon      Demon      `hcl:"Demon,block"`
 }
@@ -109,6 +110,18 @@ type Injection struct {
 	Spawn32 string `hcl:"Spawn32,attr"`
 }
 
+type Listener struct {
+	Type      string `hcl:"-"`
+	Name      string `hcl:"-"`
+	Hosts     string `hcl:"Hosts,attr,omitempty"`
+	PortBind  string `hcl:"PortBind,attr,omitempty"`
+	UserAgent string `hcl:"UserAgent,attr,omitempty"`
+	Uris      string `hcl:"Uris,attr,omitempty"`
+	Headers   string `hcl:"Headers,attr,omitempty"`
+	Response  string `hcl:"Response,attr,omitempty"`
+	PipeName  string `hcl:"PipeName,attr,omitempty"`
+}
+
 func main() {
 	a := app.New()
 	a.Settings().SetTheme(&draculaTheme{})
@@ -116,6 +129,12 @@ func main() {
 	w.Resize(fyne.NewSize(600, w.Canvas().Size().Height))
 	config := Config{}
 	form := &widget.Form{}
+
+	addOperatorButton := &widget.Button{}
+	addListenerButton := &widget.Button{}
+	saveListenerButton := &widget.Button{}
+	cancelButton := &widget.Button{}
+	saveButton := &widget.Button{}
 
 	filename := "profile.yaotl"
 	if _, err := os.Stat(filename); os.IsNotExist(err) {
@@ -171,7 +190,109 @@ func main() {
 	nasmEntry := widget.NewEntry()
 	nasmEntry.SetText(config.Teamserver.Build.Nasm)
 
+	listenerTypeSelect := widget.NewSelect([]string{"Http", "Https", "Smb"}, nil)
+	listenerNameEntry := widget.NewEntry()
+	hostsEntry := widget.NewEntry()
+	portBindEntry := widget.NewEntry()
+	userAgentEntry := widget.NewEntry()
+	urisEntry := widget.NewEntry()
+	headersEntry := widget.NewEntry()
+	responseEntry := widget.NewEntry()
+	pipeNameEntry := widget.NewEntry()
+
 	// TODO: Maybe more UI stuff?
+	listenerForm := &widget.Form{}
+
+	cancelButton = widget.NewButton("Cancel", func() {
+		// Switch back to the main form when the Cancel button is clicked
+		w.SetContent(container.NewVBox(
+			form,
+			addOperatorButton,
+			addListenerButton,
+			saveButton,
+		))
+	})
+
+	saveListenerButton = widget.NewButton("Save Listener", func() {
+		listenerType := listenerTypeSelect.Selected
+		listenerName := listenerNameEntry.Text
+
+		newListener := Listener{
+			Type: listenerType,
+			Name: listenerName,
+		}
+
+		if listenerType == "Http" || listenerType == "Https" {
+			newListener.Hosts = hostsEntry.Text
+			newListener.PortBind = portBindEntry.Text
+			newListener.UserAgent = userAgentEntry.Text
+			newListener.Uris = urisEntry.Text
+			newListener.Headers = headersEntry.Text
+			newListener.Response = responseEntry.Text
+		} else if listenerType == "Smb" {
+			newListener.PipeName = pipeNameEntry.Text
+		}
+
+		config.Listeners = append(config.Listeners, newListener)
+
+		// Switch back to the main form when the Save Listener button is clicked
+		w.SetContent(container.NewVBox(
+			form,
+			addOperatorButton,
+			addListenerButton,
+			saveButton,
+		))
+	})
+
+	addListenerButton = widget.NewButton("Add Listener", func() {
+		// Switch to the listener form when the Add Listener button is clicked
+		w.SetContent(container.NewVBox(
+			listenerForm,
+			cancelButton,
+			saveListenerButton,
+		))
+	})
+
+	listenerTypeSelect = widget.NewSelect([]string{"Http", "Https", "Smb"}, nil)
+	listenerNameEntry = widget.NewEntry()
+
+	// Http and Https fields
+	hostsEntry = widget.NewEntry()
+	portBindEntry = widget.NewEntry()
+	userAgentEntry = widget.NewEntry()
+	urisEntry = widget.NewEntry()
+	headersEntry = widget.NewEntry()
+	responseEntry = widget.NewEntry()
+
+	// Smb field
+	pipeNameEntry = widget.NewEntry()
+
+	// Function to update the form based on the selected listener type
+	updateListenerForm := func(listenerType string) {
+		listenerForm.Items = nil
+		listenerForm.Append("Listener Type:", listenerTypeSelect)
+		listenerForm.Append("Listener Name:", listenerNameEntry)
+
+		if listenerType == "Http" || listenerType == "Https" {
+			listenerForm.Append("Hosts:", hostsEntry)
+			listenerForm.Append("PortBind:", portBindEntry)
+			listenerForm.Append("UserAgent:", userAgentEntry)
+			listenerForm.Append("Uris:", urisEntry)
+			listenerForm.Append("Headers:", headersEntry)
+			listenerForm.Append("Response:", responseEntry)
+		} else if listenerType == "Smb" {
+			listenerForm.Append("PipeName:", pipeNameEntry)
+		}
+		listenerForm.Refresh()
+	}
+
+	// Initialize the form with the default listener type
+	updateListenerForm("Http")
+
+	// Update the form when the listener type changes
+	listenerTypeSelect.OnChanged = func(listenerType string) {
+		updateListenerForm(listenerType)
+	}
 
 	operatorEntries := []struct {
 		name     *widget.Entry
@@ -205,7 +326,7 @@ func main() {
 	spawn32Entry := widget.NewEntry()
 	spawn32Entry.SetText(config.Demon.Injection.Spawn32)
 
-	addOperatorButton := widget.NewButton("Add Operator", func() {
+	addOperatorButton = widget.NewButton("Add Operator", func() {
 		operatorName := widget.NewEntry()
 		operatorPassword := widget.NewEntry()
 		operatorEntries = append(operatorEntries, struct {
@@ -220,7 +341,7 @@ func main() {
 		form.Refresh()
 	})
 
-	saveButton := widget.NewButton("Save", func() {
+	saveButton = widget.NewButton("Save", func() {
 
 		f := hclwrite.NewEmptyFile()
 		rootBody := f.Body()
@@ -245,6 +366,27 @@ func main() {
 			operatorBody.SetAttributeValue("Password", cty.StringVal(op.password.Text))
 		}
 
+		// Listener Work
+		listenersBlock := rootBody.AppendNewBlock("Listeners", nil)
+		listenersBody := listenersBlock.Body()
+
+		for _, listener := range config.Listeners {
+			listenerTypeBlock := listenersBody.AppendNewBlock(listener.Type, nil)
+			listenerTypeBody := listenerTypeBlock.Body()
+			if listener.Type == "Smb" {
+				listenerTypeBody.SetAttributeValue("Name", cty.StringVal(listener.Name))
+				listenerTypeBody.SetAttributeValue("PipeName", cty.StringVal(listener.PipeName))
+			} else {
+				listenerTypeBody.SetAttributeValue("Name", cty.StringVal(listener.Name))
+				listenerTypeBody.SetAttributeValue("Hosts", cty.StringVal(listener.Hosts))
+				listenerTypeBody.SetAttributeValue("PortBind", cty.StringVal(listener.PortBind))
+				listenerTypeBody.SetAttributeValue("UserAgent", cty.StringVal(listener.UserAgent))
+				listenerTypeBody.SetAttributeValue("Uris", cty.StringVal(listener.Uris))
+				listenerTypeBody.SetAttributeValue("Headers", cty.StringVal(listener.Headers))
+				listenerTypeBody.SetAttributeValue("Response", cty.StringVal(listener.Response))
+			}
+		}
+
 		demonBlock := rootBody.AppendNewBlock("Demon", nil)
 		demonBody := demonBlock.Body()
 		sleep, _ := strconv.ParseInt(sleepEntry.Text, 10, 64)
@@ -257,7 +399,11 @@ func main() {
 		injectionBody.SetAttributeValue("Spawn64", cty.StringVal(spawn64Entry.Text))
 		injectionBody.SetAttributeValue("Spawn32", cty.StringVal(spawn32Entry.Text))
 
-		filename = profileNameEntry.Text + ".yaotl"
+		if profileNameEntry.Text == "" {
+			filename = "profile.yaotl"
+		} else {
+			filename = profileNameEntry.Text + ".yaotl"
+		}
 		err := ioutil.WriteFile(filename, f.Bytes(), 0644)
 		if err != nil {
 			dialog.ShowError(err, w)
@@ -289,6 +435,7 @@ func main() {
 	w.SetContent(container.NewVBox(
 		form,
 		addOperatorButton,
+		addListenerButton,
 		saveButton,
 	))
 
