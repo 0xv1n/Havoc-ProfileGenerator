@@ -74,6 +74,7 @@ func (d draculaTheme) Size(name fyne.ThemeSizeName) float32 {
 type Config struct {
 	Teamserver Teamserver `hcl:"Teamserver,block"`
 	Operators  []Operator `hcl:"user,block"`
+	Listeners  []Listener `hcl:"listener,block"`
 	Service    *Service   `hcl:"Service,block"`
 	Demon      Demon      `hcl:"Demon,block"`
 }
@@ -109,6 +110,18 @@ type Injection struct {
 	Spawn32 string `hcl:"Spawn32,attr"`
 }
 
+type Listener struct {
+	Type      string `hcl:"-"`
+	Name      string `hcl:"-"`
+	Hosts     string `hcl:"Hosts,attr,omitempty"`
+	PortBind  string `hcl:"PortBind,attr,omitempty"`
+	UserAgent string `hcl:"UserAgent,attr,omitempty"`
+	Uris      string `hcl:"Uris,attr,omitempty"`
+	Headers   string `hcl:"Headers,attr,omitempty"`
+	Response  string `hcl:"Response,attr,omitempty"`
+	PipeName  string `hcl:"PipeName,attr,omitempty"`
+}
+
 func main() {
 	a := app.New()
 	a.Settings().SetTheme(&draculaTheme{})
@@ -119,6 +132,7 @@ func main() {
 
 	addOperatorButton := &widget.Button{}
 	addListenerButton := &widget.Button{}
+	saveListenerButton := &widget.Button{}
 	cancelButton := &widget.Button{}
 	saveButton := &widget.Button{}
 
@@ -176,6 +190,16 @@ func main() {
 	nasmEntry := widget.NewEntry()
 	nasmEntry.SetText(config.Teamserver.Build.Nasm)
 
+	listenerTypeSelect := widget.NewSelect([]string{"Http", "Https", "Smb"}, nil)
+	listenerNameEntry := widget.NewEntry()
+	hostsEntry := widget.NewEntry()
+	portBindEntry := widget.NewEntry()
+	userAgentEntry := widget.NewEntry()
+	urisEntry := widget.NewEntry()
+	headersEntry := widget.NewEntry()
+	responseEntry := widget.NewEntry()
+	pipeNameEntry := widget.NewEntry()
+
 	// TODO: Maybe more UI stuff?
 	listenerForm := &widget.Form{}
 
@@ -189,27 +213,59 @@ func main() {
 		))
 	})
 
+	saveListenerButton = widget.NewButton("Save Listener", func() {
+		listenerType := listenerTypeSelect.Selected
+		listenerName := listenerNameEntry.Text
+
+		newListener := Listener{
+			Type: listenerType,
+			Name: listenerName,
+		}
+
+		if listenerType == "Http" || listenerType == "Https" {
+			newListener.Hosts = hostsEntry.Text
+			newListener.PortBind = portBindEntry.Text
+			newListener.UserAgent = userAgentEntry.Text
+			newListener.Uris = urisEntry.Text
+			newListener.Headers = headersEntry.Text
+			newListener.Response = responseEntry.Text
+		} else if listenerType == "Smb" {
+			newListener.PipeName = pipeNameEntry.Text
+		}
+
+		config.Listeners = append(config.Listeners, newListener)
+
+		// Switch back to the main form when the Save Listener button is clicked
+		w.SetContent(container.NewVBox(
+			form,
+			addOperatorButton,
+			addListenerButton,
+			saveButton,
+		))
+	})
+
 	addListenerButton = widget.NewButton("Add Listener", func() {
 		// Switch to the listener form when the Add Listener button is clicked
 		w.SetContent(container.NewVBox(
 			listenerForm,
 			cancelButton,
+			saveListenerButton,
 		))
 	})
 
-	listenerTypeSelect := widget.NewSelect([]string{"Http", "Https", "Smb"}, nil)
-	listenerNameEntry := widget.NewEntry()
+	listenerTypeSelect = widget.NewSelect([]string{"Http", "Https", "Smb"}, nil)
+	listenerNameEntry = widget.NewEntry()
 
 	// Http and Https fields
-	hostsEntry := widget.NewEntry()
-	portBindEntry := widget.NewEntry()
-	userAgentEntry := widget.NewEntry()
-	urisEntry := widget.NewEntry()
-	headersEntry := widget.NewEntry()
-	responseEntry := widget.NewEntry()
+	hostsEntry = widget.NewEntry()
+	portBindEntry = widget.NewEntry()
+	userAgentEntry = widget.NewEntry()
+	urisEntry = widget.NewEntry()
+	headersEntry = widget.NewEntry()
+	responseEntry = widget.NewEntry()
 
 	// Smb field
-	pipeNameEntry := widget.NewEntry()
+	pipeNameEntry = widget.NewEntry()
 
 	// Function to update the form based on the selected listener type
 	updateListenerForm := func(listenerType string) {
@@ -321,6 +377,24 @@ func main() {
 		injectionBody := injectionBlock.Body()
 		injectionBody.SetAttributeValue("Spawn64", cty.StringVal(spawn64Entry.Text))
 		injectionBody.SetAttributeValue("Spawn32", cty.StringVal(spawn32Entry.Text))
+
+		// Listener Work
+		listenersBlock := rootBody.AppendNewBlock("Listeners", nil)
+		listenersBody := listenersBlock.Body()
+
+		for _, listener := range config.Listeners {
+			listenerTypeBlock := listenersBody.AppendNewBlock(listener.Type, nil)
+			listenerTypeBody := listenerTypeBlock.Body()
+			listenerTypeBody.SetAttributeValue(listener.Name, cty.ObjectVal(map[string]cty.Value{
+				"Hosts":     cty.StringVal(listener.Hosts),
+				"PortBind":  cty.StringVal(listener.PortBind),
+				"UserAgent": cty.StringVal(listener.UserAgent),
+				"Uris":      cty.StringVal(listener.Uris),
+				"Headers":   cty.StringVal(listener.Headers),
+				"Response":  cty.StringVal(listener.Response),
+				"PipeName":  cty.StringVal(listener.PipeName),
+			}))
+		}
 
 		filename = profileNameEntry.Text + ".yaotl"
 		err := ioutil.WriteFile(filename, f.Bytes(), 0644)
