@@ -148,6 +148,7 @@ func main() {
 		}
 	}
 	// Creating UI Elements
+	profileNameEntry := widget.NewEntry()
 	hostEntry := widget.NewEntry()
 	hostEntry.SetText(config.Teamserver.Host)
 	portEntry := widget.NewEntry()
@@ -244,6 +245,7 @@ func main() {
 		injectionBody.SetAttributeValue("Spawn64", cty.StringVal(spawn64Entry.Text))
 		injectionBody.SetAttributeValue("Spawn32", cty.StringVal(spawn32Entry.Text))
 
+		filename = profileNameEntry.Text + ".yaotl"
 		err := ioutil.WriteFile(filename, f.Bytes(), 0644)
 		if err != nil {
 			dialog.ShowError(err, w)
@@ -253,6 +255,7 @@ func main() {
 	})
 
 	form.Items = []*widget.FormItem{
+		{Text: "Profile Name:", Widget: profileNameEntry},
 		{Text: "Teamserver Host:", Widget: hostEntry},
 		{Text: "Teamserver Port:", Widget: portEntry},
 		{Text: "Compiler64:", Widget: compiler64Entry},
