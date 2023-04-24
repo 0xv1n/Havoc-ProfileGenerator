@@ -20,6 +20,13 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
+var monacoFontData []byte
+
+var monacoFont = fyne.StaticResource{
+	StaticName:    "monaco.ttf",
+	StaticContent: monacoFontData,
+}
+
 // Define Dracula Theme
 type draculaTheme struct{}
 
@@ -49,7 +56,11 @@ func (d draculaTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant)
 }
 
 func (d draculaTheme) Font(style fyne.TextStyle) fyne.Resource {
-	return theme.DarkTheme().Font(style)
+	monacoFontResource, err := fyne.LoadResourceFromPath("Monaco.ttf")
+	if err != nil {
+		return theme.DarkTheme().Font(style) // Fallback to the default font if there's an issue loading the Monaco font
+	}
+	return monacoFontResource
 }
 
 func (d draculaTheme) Icon(name fyne.ThemeIconName) fyne.Resource {
@@ -102,6 +113,7 @@ func main() {
 	a := app.New()
 	a.Settings().SetTheme(&draculaTheme{})
 	w := a.NewWindow("Havoc Profile Generator")
+	w.Resize(fyne.NewSize(600, w.Canvas().Size().Height))
 	config := Config{}
 	form := &widget.Form{}
 
