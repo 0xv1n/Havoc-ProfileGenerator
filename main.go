@@ -366,18 +366,6 @@ func main() {
 			operatorBody.SetAttributeValue("Password", cty.StringVal(op.password.Text))
 		}
 
-		demonBlock := rootBody.AppendNewBlock("Demon", nil)
-		demonBody := demonBlock.Body()
-		sleep, _ := strconv.ParseInt(sleepEntry.Text, 10, 64)
-		demonBody.SetAttributeValue("Sleep", cty.NumberIntVal(sleep))
-		jitter, _ := strconv.ParseInt(jitterEntry.Text, 10, 64)
-		demonBody.SetAttributeValue("Jitter", cty.NumberIntVal(jitter))
-		demonBody.SetAttributeValue("TrustXForwardedFor", cty.BoolVal(trustXForwardedForEntry.Checked))
-		injectionBlock := demonBody.AppendNewBlock("Injection", nil)
-		injectionBody := injectionBlock.Body()
-		injectionBody.SetAttributeValue("Spawn64", cty.StringVal(spawn64Entry.Text))
-		injectionBody.SetAttributeValue("Spawn32", cty.StringVal(spawn32Entry.Text))
-
 		// Listener Work
 		listenersBlock := rootBody.AppendNewBlock("Listeners", nil)
 		listenersBody := listenersBlock.Body()
@@ -398,6 +386,19 @@ func main() {
 				listenerTypeBody.SetAttributeValue("Response", cty.StringVal(listener.Response))
 			}
 		}
+
+		demonBlock := rootBody.AppendNewBlock("Demon", nil)
+		demonBody := demonBlock.Body()
+		sleep, _ := strconv.ParseInt(sleepEntry.Text, 10, 64)
+		demonBody.SetAttributeValue("Sleep", cty.NumberIntVal(sleep))
+		jitter, _ := strconv.ParseInt(jitterEntry.Text, 10, 64)
+		demonBody.SetAttributeValue("Jitter", cty.NumberIntVal(jitter))
+		demonBody.SetAttributeValue("TrustXForwardedFor", cty.BoolVal(trustXForwardedForEntry.Checked))
+		injectionBlock := demonBody.AppendNewBlock("Injection", nil)
+		injectionBody := injectionBlock.Body()
+		injectionBody.SetAttributeValue("Spawn64", cty.StringVal(spawn64Entry.Text))
+		injectionBody.SetAttributeValue("Spawn32", cty.StringVal(spawn32Entry.Text))
+
 		if profileNameEntry.Text == "" {
 			filename = "profile.yaotl"
 		} else {
