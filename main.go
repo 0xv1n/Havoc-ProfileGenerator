@@ -117,6 +117,11 @@ func main() {
 	config := Config{}
 	form := &widget.Form{}
 
+	addOperatorButton := &widget.Button{}
+	addListenerButton := &widget.Button{}
+	cancelButton := &widget.Button{}
+	saveButton := &widget.Button{}
+
 	filename := "profile.yaotl"
 	if _, err := os.Stat(filename); os.IsNotExist(err) {
 		// Set default values for the config
@@ -172,6 +177,66 @@ func main() {
 	nasmEntry.SetText(config.Teamserver.Build.Nasm)
 
 	// TODO: Maybe more UI stuff?
+	listenerForm := &widget.Form{}
+
+	cancelButton = widget.NewButton("Cancel", func() {
+		// Switch back to the main form when the Cancel button is clicked
+		w.SetContent(container.NewVBox(
+			form,
+			addOperatorButton,
+			addListenerButton,
+			saveButton,
+		))
+	})
+
+	addListenerButton = widget.NewButton("Add Listener", func() {
+		// Switch to the listener form when the Add Listener button is clicked
+		w.SetContent(container.NewVBox(
+			listenerForm,
+			cancelButton,
+		))
+	})
+
+	listenerTypeSelect := widget.NewSelect([]string{"Http", "Https", "Smb"}, nil)
+	listenerNameEntry := widget.NewEntry()
+
+	// Http and Https fields
+	hostsEntry := widget.NewEntry()
+	portBindEntry := widget.NewEntry()
+	userAgentEntry := widget.NewEntry()
+	urisEntry := widget.NewEntry()
+	headersEntry := widget.NewEntry()
+	responseEntry := widget.NewEntry()
+
+	// Smb field
+	pipeNameEntry := widget.NewEntry()
+
+	// Function to update the form based on the selected listener type
+	updateListenerForm := func(listenerType string) {
+		listenerForm.Items = nil
+		listenerForm.Append("Listener Type:", listenerTypeSelect)
+		listenerForm.Append("Listener Name:", listenerNameEntry)
+
+		if listenerType == "Http" || listenerType == "Https" {
+			listenerForm.Append("Hosts:", hostsEntry)
+			listenerForm.Append("PortBind:", portBindEntry)
+			listenerForm.Append("UserAgent:", userAgentEntry)
+			listenerForm.Append("Uris:", urisEntry)
+			listenerForm.Append("Headers:", headersEntry)
+			listenerForm.Append("Response:", responseEntry)
+		} else if listenerType == "Smb" {
+			listenerForm.Append("PipeName:", pipeNameEntry)
+		}
+		listenerForm.Refresh()
+	}
+
+	// Initialize the form with the default listener type
+	updateListenerForm("Http")
+
+	// Update the form when the listener type changes
+	listenerTypeSelect.OnChanged = func(listenerType string) {
+		updateListenerForm(listenerType)
+	}
 
 	operatorEntries := []struct {
 		name     *widget.Entry
@@ -205,7 +270,7 @@ func main() {
 	spawn32Entry := widget.NewEntry()
 	spawn32Entry.SetText(config.Demon.Injection.Spawn32)
 
-	addOperatorButton := widget.NewButton("Add Operator", func() {
+	addOperatorButton = widget.NewButton("Add Operator", func() {
 		operatorName := widget.NewEntry()
 		operatorPassword := widget.NewEntry()
 		operatorEntries = append(operatorEntries, struct {
@@ -220,7 +285,7 @@ func main() {
 		form.Refresh()
 	})
 
-	saveButton := widget.NewButton("Save", func() {
+	saveButton = widget.NewButton("Save", func() {
 
 		f := hclwrite.NewEmptyFile()
 		rootBody := f.Body()
@@ -289,6 +354,7 @@ func main() {
 	w.SetContent(container.NewVBox(
 		form,
 		addOperatorButton,
+		addListenerButton,
 		saveButton,
 	))
 
