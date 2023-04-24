@@ -385,18 +385,24 @@ func main() {
 		for _, listener := range config.Listeners {
 			listenerTypeBlock := listenersBody.AppendNewBlock(listener.Type, nil)
 			listenerTypeBody := listenerTypeBlock.Body()
-			listenerTypeBody.SetAttributeValue(listener.Name, cty.ObjectVal(map[string]cty.Value{
-				"Hosts":     cty.StringVal(listener.Hosts),
-				"PortBind":  cty.StringVal(listener.PortBind),
-				"UserAgent": cty.StringVal(listener.UserAgent),
-				"Uris":      cty.StringVal(listener.Uris),
-				"Headers":   cty.StringVal(listener.Headers),
-				"Response":  cty.StringVal(listener.Response),
-				"PipeName":  cty.StringVal(listener.PipeName),
-			}))
+			if listener.Type == "Smb" {
+				listenerTypeBody.SetAttributeValue("Name", cty.StringVal(listener.Name))
+				listenerTypeBody.SetAttributeValue("PipeName", cty.StringVal(listener.PipeName))
+			} else {
+				listenerTypeBody.SetAttributeValue("Name", cty.StringVal(listener.Name))
+				listenerTypeBody.SetAttributeValue("Hosts", cty.StringVal(listener.Hosts))
+				listenerTypeBody.SetAttributeValue("PortBind", cty.StringVal(listener.PortBind))
+				listenerTypeBody.SetAttributeValue("UserAgent", cty.StringVal(listener.UserAgent))
+				listenerTypeBody.SetAttributeValue("Uris", cty.StringVal(listener.Uris))
+				listenerTypeBody.SetAttributeValue("Headers", cty.StringVal(listener.Headers))
+				listenerTypeBody.SetAttributeValue("Response", cty.StringVal(listener.Response))
+			}
 		}
-
-		filename = profileNameEntry.Text + ".yaotl"
+		if profileNameEntry.Text == "" {
+			filename = "profile.yaotl"
+		} else {
+			filename = profileNameEntry.Text + ".yaotl"
+		}
 		err := ioutil.WriteFile(filename, f.Bytes(), 0644)
 		if err != nil {
 			dialog.ShowError(err, w)
