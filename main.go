@@ -128,14 +128,14 @@ type Listener struct {
 	Name         string   `hcl:"-"`
 	KillDate     string   `hcl:"KillDate,attr,omitempty"`
 	WorkingHours string   `hcl:"WorkingHours,attr,omitempty"`
-	Hosts        []string `hcl:"Hosts,attr,omitempty"`
+	Hosts        []string `hcl:"Hosts,attr,omitempty" cty:"list(string)"`
 	HostBind     string   `hcl:"HostBind,attr,omitempty"`
 	HostRotation string   `hcl:"HostRotation,attr,omitempty"`
 	PortBind     int      `hcl:"PortBind,attr,omitempty"`
 	PortConn     int      `hcl:"PortConn,attr,omitempty"`
 	UserAgent    string   `hcl:"UserAgent,attr,omitempty"`
-	Headers      []string `hcl:"Headers,attr,omitempty"`
-	Uris         []string `hcl:"Uris,attr,omitempty"`
+	Headers      []string `hcl:"Headers,attr,omitempty" cty:"list(string)"`
+	Uris         []string `hcl:"Uris,attr,omitempty" cty:"list(string)"`
 	Secure       bool     `hcl:"Secure,attr,omitempty"`
 	Response     string   `hcl:"Response,attr,omitempty"`
 	PipeName     string   `hcl:"PipeName,attr,omitempty"`
@@ -251,7 +251,11 @@ func main() {
 		if listenerType == "Http" || listenerType == "Https" {
 			newListener.KillDate = killDateEntry.Text
 			newListener.WorkingHours = workingHoursEntry.Text
-			newListener.Hosts = strings.Split(hostsEntry.Text, ",")
+			hosts := strings.Split(hostsEntry.Text, ",")
+			newListener.Hosts = make([]string, len(hosts))
+			for i, h := range hosts {
+				newListener.Hosts[i] = strings.TrimSpace(h)
+			}
 			newListener.HostBind = hostBindEntry.Text
 			newListener.HostRotation = hostRotationEntry.Selected
 			port_b, err := strconv.Atoi(portBindEntry.Text)
@@ -431,8 +435,12 @@ func main() {
 				if listener.WorkingHours != "" {
 					listenerTypeBody.SetAttributeValue("WorkingHours", cty.StringVal(listener.WorkingHours))
 				}
-				if listener.Hosts != nil {
-					listenerTypeBody.SetAttributeValue("Hosts", cty.StringVal(strings.Join(listener.Hosts, ",")))
+				if len(listener.Hosts) > 0 {
+					hosts := make([]cty.Value, len(listener.Hosts))
+					for i, host := range listener.Hosts {
+						hosts[i] = cty.StringVal(host)
+					}
+					listenerTypeBody.SetAttributeValue("Hosts", cty.ListVal(hosts))
 				}
 				if listener.HostBind != "" {
 					listenerTypeBody.SetAttributeValue("HostBind", cty.StringVal(listener.HostBind))
