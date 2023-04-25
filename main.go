@@ -211,17 +211,29 @@ func main() {
 
 	listenerTypeSelect := widget.NewSelect([]string{"Http", "Https", "Smb"}, nil)
 	listenerNameEntry := widget.NewEntry()
+	listenerNameEntry.SetPlaceHolder("Required")
 	hostsEntry := widget.NewEntry()
+	hostsEntry.SetPlaceHolder("Optional: Comma-separated hosts.")
 	portBindEntry := widget.NewEntry()
+	portBindEntry.SetPlaceHolder("Required: 8080")
 	userAgentEntry := widget.NewEntry()
+	userAgentEntry.SetPlaceHolder("Required")
 	urisEntry := widget.NewEntry()
+	urisEntry.SetPlaceHolder("Optional: /cat.png,/a.gif,etc")
 	headersEntry := widget.NewEntry()
+	headersEntry.SetPlaceHolder("Optional: Content-type: text/plain, X-IsHavoc: true, etc")
 	responseEntry := widget.NewEntry()
+	responseEntry.SetPlaceHolder("Optional")
 	pipeNameEntry := widget.NewEntry()
+	pipeNameEntry.SetPlaceHolder("Required: pipe_name")
 	killDateEntry := widget.NewEntry()
+	killDateEntry.SetPlaceHolder("Optional: 2006-01-02 15:04:05")
 	workingHoursEntry := widget.NewEntry()
+	workingHoursEntry.SetPlaceHolder("e.g. 8:00-17:00")
 	hostBindEntry := widget.NewEntry()
+	hostBindEntry.SetPlaceHolder("Required")
 	portConnEntry := widget.NewEntry()
+	portConnEntry.SetPlaceHolder("Optional")
 	secureEntry := widget.NewCheck("", nil)
 	hostRotationEntry := widget.NewSelect([]string{"random", "round-robin"}, nil)
 	hostRotationEntry.SetSelected("round-robin")
@@ -309,17 +321,6 @@ func main() {
 
 	listenerTypeSelect = widget.NewSelect([]string{"Http", "Https", "Smb"}, nil)
 	listenerNameEntry = widget.NewEntry()
-
-	// Http and Https fields
-	hostsEntry = widget.NewEntry()
-	portBindEntry = widget.NewEntry()
-	userAgentEntry = widget.NewEntry()
-	urisEntry = widget.NewEntry()
-	headersEntry = widget.NewEntry()
-	responseEntry = widget.NewEntry()
-
-	// Smb field
-	pipeNameEntry = widget.NewEntry()
 
 	// Function to update the form based on the selected listener type
 	updateListenerForm := func(listenerType string) {
@@ -443,7 +444,7 @@ func main() {
 				if listener.WorkingHours != "" {
 					listenerTypeBody.SetAttributeValue("WorkingHours", cty.StringVal(listener.WorkingHours))
 				}
-				if len(listener.Hosts) > 0 {
+				if len(listener.Hosts) > 0 && listener.Hosts[0] != "" {
 					hosts := make([]cty.Value, len(listener.Hosts))
 					for i, host := range listener.Hosts {
 						hosts[i] = cty.StringVal(host)
@@ -461,26 +462,21 @@ func main() {
 				if listener.UserAgent != "" {
 					listenerTypeBody.SetAttributeValue("UserAgent", cty.StringVal(listener.UserAgent))
 				}
-				if len(listener.Headers) > 0 {
+				if len(listener.Headers) > 0 && listener.Headers[0] != "" {
 					headers := make([]cty.Value, len(listener.Headers))
 					for i, header := range listener.Headers {
 						headers[i] = cty.StringVal(header)
 					}
 					listenerTypeBody.SetAttributeValue("Headers", cty.ListVal(headers))
 				}
-				if len(listener.Uris) > 0 {
+				if len(listener.Uris) > 0 && listener.Uris[0] != "" {
 					uris := make([]cty.Value, len(listener.Uris))
 					for i, uri := range listener.Uris {
 						uris[i] = cty.StringVal(uri)
 					}
 					listenerTypeBody.SetAttributeValue("Uris", cty.ListVal(uris))
 				}
-				secure := secureEntry.Checked
-				if !secure {
-					listenerTypeBody.SetAttributeValue("Secure", cty.BoolVal(false))
-				} else {
-					listenerTypeBody.SetAttributeValue("Secure", cty.BoolVal(listener.Secure))
-				}
+				listenerTypeBody.SetAttributeValue("Secure", cty.BoolVal(secureEntry.Checked))
 				if listener.Response != "" {
 					listenerTypeBody.SetAttributeValue("Response", cty.StringVal(listener.Response))
 				}
