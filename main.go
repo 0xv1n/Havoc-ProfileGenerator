@@ -269,10 +269,18 @@ func main() {
 			newListener.PortBind = port_b
 			newListener.PortConn = port_c
 			newListener.UserAgent = userAgentEntry.Text
+
 			headers := strings.Split(headersEntry.Text, ",")
-			newListener.Headers = headers
+			newListener.Headers = make([]string, len(headers))
+			for i, h := range headers {
+				newListener.Headers[i] = strings.TrimSpace(h)
+			}
+
 			uris := strings.Split(urisEntry.Text, ",")
-			newListener.Uris = uris
+			newListener.Uris = make([]string, len(uris))
+			for i, h := range uris {
+				newListener.Uris[i] = strings.TrimSpace(h)
+			}
 			newListener.Secure = secureEntry.Checked
 			newListener.Response = responseEntry.Text
 		} else if listenerType == "Smb" {
@@ -453,13 +461,19 @@ func main() {
 				if listener.UserAgent != "" {
 					listenerTypeBody.SetAttributeValue("UserAgent", cty.StringVal(listener.UserAgent))
 				}
-				headers := strings.Join(listener.Headers, ",")
-				if headers != "" {
-					listenerTypeBody.SetAttributeValue("Headers", cty.StringVal(headers))
+				if len(listener.Headers) > 0 {
+					headers := make([]cty.Value, len(listener.Headers))
+					for i, header := range listener.Headers {
+						headers[i] = cty.StringVal(header)
+					}
+					listenerTypeBody.SetAttributeValue("Headers", cty.ListVal(headers))
 				}
-				uris := strings.Join(listener.Uris, ",")
-				if uris != "" {
-					listenerTypeBody.SetAttributeValue("Uris", cty.StringVal(uris))
+				if len(listener.Uris) > 0 {
+					uris := make([]cty.Value, len(listener.Uris))
+					for i, uri := range listener.Uris {
+						uris[i] = cty.StringVal(uri)
+					}
+					listenerTypeBody.SetAttributeValue("Uris", cty.ListVal(uris))
 				}
 				secure := secureEntry.Checked
 				if !secure {
