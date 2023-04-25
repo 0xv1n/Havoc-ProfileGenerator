@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"strconv"
+	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -13,6 +14,7 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -77,6 +79,17 @@ type Config struct {
 	Listeners  []Listener `hcl:"listener,block"`
 	Service    *Service   `hcl:"Service,block"`
 	Demon      Demon      `hcl:"Demon,block"`
+	Webhook    Webhook    `hcl:"Webhook,block"`
+}
+
+type Webhook struct {
+	Discord Discord `hcl:"Discord,block"`
+}
+
+type Discord struct {
+	Url       string `hcl:"Url,attr"`
+	AvatarUrl string `hcl:"AvatarUrl,attr"`
+	User      string `hcl:"User,attr"`
 }
 
 type Teamserver struct {
@@ -111,15 +124,21 @@ type Injection struct {
 }
 
 type Listener struct {
-	Type      string `hcl:"-"`
-	Name      string `hcl:"-"`
-	Hosts     string `hcl:"Hosts,attr,omitempty"`
-	PortBind  string `hcl:"PortBind,attr,omitempty"`
-	UserAgent string `hcl:"UserAgent,attr,omitempty"`
-	Uris      string `hcl:"Uris,attr,omitempty"`
-	Headers   string `hcl:"Headers,attr,omitempty"`
-	Response  string `hcl:"Response,attr,omitempty"`
-	PipeName  string `hcl:"PipeName,attr,omitempty"`
+	Type         string   `hcl:"-"`
+	Name         string   `hcl:"-"`
+	KillDate     string   `hcl:"KillDate,attr,omitempty"`
+	WorkingHours string   `hcl:"WorkingHours,attr,omitempty"`
+	Hosts        []string `hcl:"Hosts,attr,omitempty"`
+	HostBind     string   `hcl:"HostBind,attr,omitempty"`
+	HostRotation string   `hcl:"HostRotation,attr,omitempty"`
+	PortBind     int      `hcl:"PortBind,attr,omitempty"`
+	PortConn     int      `hcl:"PortConn,attr,omitempty"`
+	UserAgent    string   `hcl:"UserAgent,attr,omitempty"`
+	Headers      []string `hcl:"Headers,attr,omitempty"`
+	Uris         []string `hcl:"Uris,attr,omitempty"`
+	Secure       bool     `hcl:"Secure,attr,omitempty"`
+	Response     string   `hcl:"Response,attr,omitempty"`
+	PipeName     string   `hcl:"PipeName,attr,omitempty"`
 }
 
 func main() {
@@ -141,7 +160,7 @@ func main() {
 		// Set default values for the config
 		config = Config{
 			Teamserver: Teamserver{
-				Host: "",
+				Host: "0.0.0.0",
 				Port: 40056,
 				Build: Build{
 					Compiler64: "data/x86_64-w64-mingw32-cross/bin/x86_64-w64-mingw32-gcc",
@@ -199,6 +218,13 @@ func main() {
 	headersEntry := widget.NewEntry()
 	responseEntry := widget.NewEntry()
 	pipeNameEntry := widget.NewEntry()
+	killDateEntry := widget.NewEntry()
+	workingHoursEntry := widget.NewEntry()
+	hostBindEntry := widget.NewEntry()
+	portConnEntry := widget.NewEntry()
+	secureEntry := widget.NewCheck("", nil)
+	hostRotationEntry := widget.NewSelect([]string{"random", "round-robin"}, nil)
+	hostRotationEntry.SetSelected("round-robin")
 
 	// TODO: Maybe more UI stuff?
 	listenerForm := &widget.Form{}
@@ -223,11 +249,27 @@ func main() {
 		}
 
 		if listenerType == "Http" || listenerType == "Https" {
-			newListener.Hosts = hostsEntry.Text
-			newListener.PortBind = portBindEntry.Text
+			newListener.KillDate = killDateEntry.Text
+			newListener.WorkingHours = workingHoursEntry.Text
+			newListener.Hosts = strings.Split(hostsEntry.Text, ",")
+			newListener.HostBind = hostBindEntry.Text
+			newListener.HostRotation = hostRotationEntry.Selected
+			port_b, err := strconv.Atoi(portBindEntry.Text)
+			if err != nil {
+				// handle error
+			}
+			port_c, err := strconv.Atoi(portConnEntry.Text)
+			if err != nil {
+				// handle error
+			}
+			newListener.PortBind = port_b
+			newListener.PortConn = port_c
 			newListener.UserAgent = userAgentEntry.Text
-			newListener.Uris = urisEntry.Text
-			newListener.Headers = headersEntry.Text
+			headers := strings.Split(headersEntry.Text, ",")
+			newListener.Headers = headers
+			uris := strings.Split(urisEntry.Text, ",")
+			newListener.Uris = uris
+			newListener.Secure = secureEntry.Checked
 			newListener.Response = responseEntry.Text
 		} else if listenerType == "Smb" {
 			newListener.PipeName = pipeNameEntry.Text
@@ -274,11 +316,17 @@ func main() {
 		listenerForm.Append("Listener Name:", listenerNameEntry)
 
 		if listenerType == "Http" || listenerType == "Https" {
+			listenerForm.Append("KillDate:", killDateEntry)
+			listenerForm.Append("WorkingHours:", workingHoursEntry)
 			listenerForm.Append("Hosts:", hostsEntry)
+			listenerForm.Append("HostBind:", hostBindEntry)
+			listenerForm.Append("HostRotation:", hostRotationEntry)
 			listenerForm.Append("PortBind:", portBindEntry)
+			listenerForm.Append("PortConn:", portConnEntry)
 			listenerForm.Append("UserAgent:", userAgentEntry)
-			listenerForm.Append("Uris:", urisEntry)
 			listenerForm.Append("Headers:", headersEntry)
+			listenerForm.Append("Uris:", urisEntry)
+			listenerForm.Append("Secure:", secureEntry)
 			listenerForm.Append("Response:", responseEntry)
 		} else if listenerType == "Smb" {
 			listenerForm.Append("PipeName:", pipeNameEntry)
@@ -373,17 +421,47 @@ func main() {
 		for _, listener := range config.Listeners {
 			listenerTypeBlock := listenersBody.AppendNewBlock(listener.Type, nil)
 			listenerTypeBody := listenerTypeBlock.Body()
+			listenerTypeBody.SetAttributeValue("Name", cty.StringVal(listener.Name))
 			if listener.Type == "Smb" {
-				listenerTypeBody.SetAttributeValue("Name", cty.StringVal(listener.Name))
 				listenerTypeBody.SetAttributeValue("PipeName", cty.StringVal(listener.PipeName))
 			} else {
-				listenerTypeBody.SetAttributeValue("Name", cty.StringVal(listener.Name))
-				listenerTypeBody.SetAttributeValue("Hosts", cty.StringVal(listener.Hosts))
-				listenerTypeBody.SetAttributeValue("PortBind", cty.StringVal(listener.PortBind))
-				listenerTypeBody.SetAttributeValue("UserAgent", cty.StringVal(listener.UserAgent))
-				listenerTypeBody.SetAttributeValue("Uris", cty.StringVal(listener.Uris))
-				listenerTypeBody.SetAttributeValue("Headers", cty.StringVal(listener.Headers))
-				listenerTypeBody.SetAttributeValue("Response", cty.StringVal(listener.Response))
+				if listener.KillDate != "" {
+					listenerTypeBody.SetAttributeValue("KillDate", cty.StringVal(listener.KillDate))
+				}
+				if listener.WorkingHours != "" {
+					listenerTypeBody.SetAttributeValue("WorkingHours", cty.StringVal(listener.WorkingHours))
+				}
+				if listener.Hosts != nil {
+					listenerTypeBody.SetAttributeValue("Hosts", cty.StringVal(strings.Join(listener.Hosts, ",")))
+				}
+				if listener.HostBind != "" {
+					listenerTypeBody.SetAttributeValue("HostBind", cty.StringVal(listener.HostBind))
+				}
+				if listener.HostRotation != "" {
+					listenerTypeBody.SetAttributeValue("HostRotation", cty.StringVal(listener.HostRotation))
+				}
+				listenerTypeBody.SetAttributeValue("PortBind", cty.NumberIntVal(int64(listener.PortBind)))
+				listenerTypeBody.SetAttributeValue("PortConn", cty.NumberIntVal(int64(listener.PortConn)))
+				if listener.UserAgent != "" {
+					listenerTypeBody.SetAttributeValue("UserAgent", cty.StringVal(listener.UserAgent))
+				}
+				headers := strings.Join(listener.Headers, ",")
+				if headers != "" {
+					listenerTypeBody.SetAttributeValue("Headers", cty.StringVal(headers))
+				}
+				uris := strings.Join(listener.Uris, ",")
+				if uris != "" {
+					listenerTypeBody.SetAttributeValue("Uris", cty.StringVal(uris))
+				}
+				secure := secureEntry.Checked
+				if !secure {
+					listenerTypeBody.SetAttributeValue("Secure", cty.BoolVal(false))
+				} else {
+					listenerTypeBody.SetAttributeValue("Secure", cty.BoolVal(listener.Secure))
+				}
+				if listener.Response != "" {
+					listenerTypeBody.SetAttributeValue("Response", cty.StringVal(listener.Response))
+				}
 			}
 		}
 
