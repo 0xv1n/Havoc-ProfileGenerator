@@ -209,19 +209,31 @@ func main() {
 	nasmEntry := widget.NewEntry()
 	nasmEntry.SetText(config.Teamserver.Build.Nasm)
 
-	listenerTypeSelect := widget.NewSelect([]string{"Http", "Https", "Smb"}, nil)
+	listenerTypeSelect := widget.NewSelect([]string{"Http", "Smb"}, nil)
 	listenerNameEntry := widget.NewEntry()
+	listenerNameEntry.SetPlaceHolder("Required: Listener_Name")
 	hostsEntry := widget.NewEntry()
+	hostsEntry.SetPlaceHolder("Optional: Comma-separated hosts.")
 	portBindEntry := widget.NewEntry()
+	portBindEntry.SetPlaceHolder("Required: e.g. 8080")
 	userAgentEntry := widget.NewEntry()
+	userAgentEntry.SetPlaceHolder("Required: e.g. Mozilla/5.0...")
 	urisEntry := widget.NewEntry()
+	urisEntry.SetPlaceHolder("Optional: /cat.png,/a.gif,etc")
 	headersEntry := widget.NewEntry()
+	headersEntry.SetPlaceHolder("Optional: Content-type: text/plain, X-IsHavoc: true...")
 	responseEntry := widget.NewEntry()
+	responseEntry.SetPlaceHolder("Optional")
 	pipeNameEntry := widget.NewEntry()
+	pipeNameEntry.SetPlaceHolder("Required: e.g. pipe_name")
 	killDateEntry := widget.NewEntry()
+	killDateEntry.SetPlaceHolder("Optional: e.g. 2006-01-02 15:04:05")
 	workingHoursEntry := widget.NewEntry()
+	workingHoursEntry.SetPlaceHolder("Required: e.g. 8:00-17:00")
 	hostBindEntry := widget.NewEntry()
+	hostBindEntry.SetPlaceHolder("Required: e.g. 0.0.0.0")
 	portConnEntry := widget.NewEntry()
+	portConnEntry.SetPlaceHolder("Optional: eg.g 8080")
 	secureEntry := widget.NewCheck("", nil)
 	hostRotationEntry := widget.NewSelect([]string{"random", "round-robin"}, nil)
 	hostRotationEntry.SetSelected("round-robin")
@@ -248,7 +260,7 @@ func main() {
 			Name: listenerName,
 		}
 
-		if listenerType == "Http" || listenerType == "Https" {
+		if listenerType == "Http" {
 			newListener.KillDate = killDateEntry.Text
 			newListener.WorkingHours = workingHoursEntry.Text
 			hosts := strings.Split(hostsEntry.Text, ",")
@@ -307,19 +319,7 @@ func main() {
 		))
 	})
 
-	listenerTypeSelect = widget.NewSelect([]string{"Http", "Https", "Smb"}, nil)
 	listenerNameEntry = widget.NewEntry()
-
-	// Http and Https fields
-	hostsEntry = widget.NewEntry()
-	portBindEntry = widget.NewEntry()
-	userAgentEntry = widget.NewEntry()
-	urisEntry = widget.NewEntry()
-	headersEntry = widget.NewEntry()
-	responseEntry = widget.NewEntry()
-
-	// Smb field
-	pipeNameEntry = widget.NewEntry()
 
 	// Function to update the form based on the selected listener type
 	updateListenerForm := func(listenerType string) {
@@ -327,7 +327,7 @@ func main() {
 		listenerForm.Append("Listener Type:", listenerTypeSelect)
 		listenerForm.Append("Listener Name:", listenerNameEntry)
 
-		if listenerType == "Http" || listenerType == "Https" {
+		if listenerType == "Http" {
 			listenerForm.Append("KillDate:", killDateEntry)
 			listenerForm.Append("WorkingHours:", workingHoursEntry)
 			listenerForm.Append("Hosts:", hostsEntry)
@@ -433,17 +433,27 @@ func main() {
 		for _, listener := range config.Listeners {
 			listenerTypeBlock := listenersBody.AppendNewBlock(listener.Type, nil)
 			listenerTypeBody := listenerTypeBlock.Body()
-			listenerTypeBody.SetAttributeValue("Name", cty.StringVal(listener.Name))
+			if listener.Name != "" {
+				listenerTypeBody.SetAttributeValue("Name", cty.StringVal(listener.Name))
+			} else {
+				listenerTypeBody.SetAttributeValue("Name", cty.StringVal("REQUIRED_FIELD"))
+			}
 			if listener.Type == "Smb" {
-				listenerTypeBody.SetAttributeValue("PipeName", cty.StringVal(listener.PipeName))
+				if listener.PipeName != "" {
+					listenerTypeBody.SetAttributeValue("PipeName", cty.StringVal(listener.PipeName))
+				} else {
+					listenerTypeBody.SetAttributeValue("PipeName", cty.StringVal("REQUIRED_FIELD"))
+				}
 			} else {
 				if listener.KillDate != "" {
 					listenerTypeBody.SetAttributeValue("KillDate", cty.StringVal(listener.KillDate))
 				}
 				if listener.WorkingHours != "" {
 					listenerTypeBody.SetAttributeValue("WorkingHours", cty.StringVal(listener.WorkingHours))
+				} else {
+					listenerTypeBody.SetAttributeValue("WorkingHours", cty.StringVal("REQUIRED_FIELD"))
 				}
-				if len(listener.Hosts) > 0 {
+				if len(listener.Hosts) > 0 && listener.Hosts[0] != "" {
 					hosts := make([]cty.Value, len(listener.Hosts))
 					for i, host := range listener.Hosts {
 						hosts[i] = cty.StringVal(host)
@@ -452,35 +462,38 @@ func main() {
 				}
 				if listener.HostBind != "" {
 					listenerTypeBody.SetAttributeValue("HostBind", cty.StringVal(listener.HostBind))
+				} else {
+					listenerTypeBody.SetAttributeValue("HostBind", cty.StringVal("REQUIRED_FIELD"))
 				}
 				if listener.HostRotation != "" {
 					listenerTypeBody.SetAttributeValue("HostRotation", cty.StringVal(listener.HostRotation))
 				}
-				listenerTypeBody.SetAttributeValue("PortBind", cty.NumberIntVal(int64(listener.PortBind)))
+				if listener.PortBind > 0 {
+					listenerTypeBody.SetAttributeValue("PortBind", cty.NumberIntVal(int64(listener.PortBind)))
+				} else {
+					listenerTypeBody.SetAttributeValue("PortBind", cty.StringVal("REQUIRED_FIELD"))
+				}
 				listenerTypeBody.SetAttributeValue("PortConn", cty.NumberIntVal(int64(listener.PortConn)))
 				if listener.UserAgent != "" {
 					listenerTypeBody.SetAttributeValue("UserAgent", cty.StringVal(listener.UserAgent))
 				}
-				if len(listener.Headers) > 0 {
+				if len(listener.Headers) > 0 && listener.Headers[0] != "" {
 					headers := make([]cty.Value, len(listener.Headers))
 					for i, header := range listener.Headers {
 						headers[i] = cty.StringVal(header)
 					}
 					listenerTypeBody.SetAttributeValue("Headers", cty.ListVal(headers))
+				} else {
+					listenerTypeBody.SetAttributeValue("Headers", cty.StringVal("REQUIRED_FIELD"))
 				}
-				if len(listener.Uris) > 0 {
+				if len(listener.Uris) > 0 && listener.Uris[0] != "" {
 					uris := make([]cty.Value, len(listener.Uris))
 					for i, uri := range listener.Uris {
 						uris[i] = cty.StringVal(uri)
 					}
 					listenerTypeBody.SetAttributeValue("Uris", cty.ListVal(uris))
 				}
-				secure := secureEntry.Checked
-				if !secure {
-					listenerTypeBody.SetAttributeValue("Secure", cty.BoolVal(false))
-				} else {
-					listenerTypeBody.SetAttributeValue("Secure", cty.BoolVal(listener.Secure))
-				}
+				listenerTypeBody.SetAttributeValue("Secure", cty.BoolVal(secureEntry.Checked))
 				if listener.Response != "" {
 					listenerTypeBody.SetAttributeValue("Response", cty.StringVal(listener.Response))
 				}
