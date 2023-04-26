@@ -433,9 +433,17 @@ func main() {
 		for _, listener := range config.Listeners {
 			listenerTypeBlock := listenersBody.AppendNewBlock(listener.Type, nil)
 			listenerTypeBody := listenerTypeBlock.Body()
-			listenerTypeBody.SetAttributeValue("Name", cty.StringVal(listener.Name))
+			if listener.Name != "" {
+				listenerTypeBody.SetAttributeValue("Name", cty.StringVal(listener.Name))
+			} else {
+				listenerTypeBody.SetAttributeValue("Name", cty.StringVal("REQUIRED_FIELD"))
+			}
 			if listener.Type == "Smb" {
-				listenerTypeBody.SetAttributeValue("PipeName", cty.StringVal(listener.PipeName))
+				if listener.PipeName != "" {
+					listenerTypeBody.SetAttributeValue("PipeName", cty.StringVal(listener.PipeName))
+				} else {
+					listenerTypeBody.SetAttributeValue("PipeName", cty.StringVal("REQUIRED_FIELD"))
+				}
 			} else {
 				if listener.KillDate != "" {
 					listenerTypeBody.SetAttributeValue("KillDate", cty.StringVal(listener.KillDate))
