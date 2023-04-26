@@ -209,31 +209,31 @@ func main() {
 	nasmEntry := widget.NewEntry()
 	nasmEntry.SetText(config.Teamserver.Build.Nasm)
 
-	listenerTypeSelect := widget.NewSelect([]string{"Http", "Https", "Smb"}, nil)
+	listenerTypeSelect := widget.NewSelect([]string{"Http", "Smb"}, nil)
 	listenerNameEntry := widget.NewEntry()
-	listenerNameEntry.SetPlaceHolder("Required")
+	listenerNameEntry.SetPlaceHolder("Required: Listener_Name")
 	hostsEntry := widget.NewEntry()
 	hostsEntry.SetPlaceHolder("Optional: Comma-separated hosts.")
 	portBindEntry := widget.NewEntry()
-	portBindEntry.SetPlaceHolder("Required: 8080")
+	portBindEntry.SetPlaceHolder("Required: e.g. 8080")
 	userAgentEntry := widget.NewEntry()
-	userAgentEntry.SetPlaceHolder("Required")
+	userAgentEntry.SetPlaceHolder("Required: e.g. Mozilla/5.0...")
 	urisEntry := widget.NewEntry()
 	urisEntry.SetPlaceHolder("Optional: /cat.png,/a.gif,etc")
 	headersEntry := widget.NewEntry()
-	headersEntry.SetPlaceHolder("Optional: Content-type: text/plain, X-IsHavoc: true, etc")
+	headersEntry.SetPlaceHolder("Optional: Content-type: text/plain, X-IsHavoc: true...")
 	responseEntry := widget.NewEntry()
 	responseEntry.SetPlaceHolder("Optional")
 	pipeNameEntry := widget.NewEntry()
-	pipeNameEntry.SetPlaceHolder("Required: pipe_name")
+	pipeNameEntry.SetPlaceHolder("Required: e.g. pipe_name")
 	killDateEntry := widget.NewEntry()
-	killDateEntry.SetPlaceHolder("Optional: 2006-01-02 15:04:05")
+	killDateEntry.SetPlaceHolder("Optional: e.g. 2006-01-02 15:04:05")
 	workingHoursEntry := widget.NewEntry()
-	workingHoursEntry.SetPlaceHolder("e.g. 8:00-17:00")
+	workingHoursEntry.SetPlaceHolder("Required: e.g. 8:00-17:00")
 	hostBindEntry := widget.NewEntry()
-	hostBindEntry.SetPlaceHolder("Required")
+	hostBindEntry.SetPlaceHolder("Required: e.g. 0.0.0.0")
 	portConnEntry := widget.NewEntry()
-	portConnEntry.SetPlaceHolder("Optional")
+	portConnEntry.SetPlaceHolder("Optional: eg.g 8080")
 	secureEntry := widget.NewCheck("", nil)
 	hostRotationEntry := widget.NewSelect([]string{"random", "round-robin"}, nil)
 	hostRotationEntry.SetSelected("round-robin")
@@ -260,7 +260,7 @@ func main() {
 			Name: listenerName,
 		}
 
-		if listenerType == "Http" || listenerType == "Https" {
+		if listenerType == "Http" {
 			newListener.KillDate = killDateEntry.Text
 			newListener.WorkingHours = workingHoursEntry.Text
 			hosts := strings.Split(hostsEntry.Text, ",")
@@ -319,7 +319,6 @@ func main() {
 		))
 	})
 
-	listenerTypeSelect = widget.NewSelect([]string{"Http", "Https", "Smb"}, nil)
 	listenerNameEntry = widget.NewEntry()
 
 	// Function to update the form based on the selected listener type
@@ -328,7 +327,7 @@ func main() {
 		listenerForm.Append("Listener Type:", listenerTypeSelect)
 		listenerForm.Append("Listener Name:", listenerNameEntry)
 
-		if listenerType == "Http" || listenerType == "Https" {
+		if listenerType == "Http" {
 			listenerForm.Append("KillDate:", killDateEntry)
 			listenerForm.Append("WorkingHours:", workingHoursEntry)
 			listenerForm.Append("Hosts:", hostsEntry)
@@ -443,6 +442,8 @@ func main() {
 				}
 				if listener.WorkingHours != "" {
 					listenerTypeBody.SetAttributeValue("WorkingHours", cty.StringVal(listener.WorkingHours))
+				} else {
+					listenerTypeBody.SetAttributeValue("WorkingHours", cty.StringVal("REQUIRED_FIELD"))
 				}
 				if len(listener.Hosts) > 0 && listener.Hosts[0] != "" {
 					hosts := make([]cty.Value, len(listener.Hosts))
@@ -453,11 +454,17 @@ func main() {
 				}
 				if listener.HostBind != "" {
 					listenerTypeBody.SetAttributeValue("HostBind", cty.StringVal(listener.HostBind))
+				} else {
+					listenerTypeBody.SetAttributeValue("HostBind", cty.StringVal("REQUIRED_FIELD"))
 				}
 				if listener.HostRotation != "" {
 					listenerTypeBody.SetAttributeValue("HostRotation", cty.StringVal(listener.HostRotation))
 				}
-				listenerTypeBody.SetAttributeValue("PortBind", cty.NumberIntVal(int64(listener.PortBind)))
+				if listener.PortBind > 0 {
+					listenerTypeBody.SetAttributeValue("PortBind", cty.NumberIntVal(int64(listener.PortBind)))
+				} else {
+					listenerTypeBody.SetAttributeValue("PortBind", cty.StringVal("REQUIRED_FIELD"))
+				}
 				listenerTypeBody.SetAttributeValue("PortConn", cty.NumberIntVal(int64(listener.PortConn)))
 				if listener.UserAgent != "" {
 					listenerTypeBody.SetAttributeValue("UserAgent", cty.StringVal(listener.UserAgent))
@@ -468,6 +475,8 @@ func main() {
 						headers[i] = cty.StringVal(header)
 					}
 					listenerTypeBody.SetAttributeValue("Headers", cty.ListVal(headers))
+				} else {
+					listenerTypeBody.SetAttributeValue("Headers", cty.StringVal("REQUIRED_FIELD"))
 				}
 				if len(listener.Uris) > 0 && listener.Uris[0] != "" {
 					uris := make([]cty.Value, len(listener.Uris))
