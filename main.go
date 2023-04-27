@@ -137,7 +137,7 @@ type Listener struct {
 	Headers      []string `hcl:"Headers,attr,omitempty" cty:"list(string)"`
 	Uris         []string `hcl:"Uris,attr,omitempty" cty:"list(string)"`
 	Secure       bool     `hcl:"Secure,attr,omitempty"`
-	Response     string   `hcl:"Response,attr,omitempty"`
+	Response     []string `hcl:"Response,attr,omitempty" cty:"list(string)"`
 	PipeName     string   `hcl:"PipeName,attr,omitempty"`
 }
 
@@ -294,7 +294,11 @@ func main() {
 				newListener.Uris[i] = strings.TrimSpace(h)
 			}
 			newListener.Secure = secureEntry.Checked
-			newListener.Response = responseEntry.Text
+			response := strings.Split(responseEntry.Text, ",")
+			newListener.Response = make([]string, len(response))
+			for i, h := range response {
+				newListener.Response[i] = strings.TrimSpace(h)
+			}
 		} else if listenerType == "Smb" {
 			newListener.PipeName = pipeNameEntry.Text
 		}
@@ -494,8 +498,14 @@ func main() {
 					listenerTypeBody.SetAttributeValue("Uris", cty.ListVal(uris))
 				}
 				listenerTypeBody.SetAttributeValue("Secure", cty.BoolVal(secureEntry.Checked))
-				if listener.Response != "" {
-					listenerTypeBody.SetAttributeValue("Response", cty.StringVal(listener.Response))
+				if len(listener.Response) > 0 && listener.Response[0] != "" {
+					responseBlock := listenerTypeBody.AppendNewBlock("Response", nil)
+					responseBody := responseBlock.Body()
+					responseHeaders := make([]cty.Value, len(listener.Response))
+					for i, resp := range listener.Response {
+						responseHeaders[i] = cty.StringVal(resp)
+					}
+					responseBody.SetAttributeValue("Headers", cty.ListVal(responseHeaders))
 				}
 			}
 		}
